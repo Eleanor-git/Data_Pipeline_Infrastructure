@@ -9,6 +9,7 @@ import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime
+import numpy as np
 import tempfile
 
 
@@ -81,6 +82,104 @@ def download_data_from_s3(s3_client, bucket_name):
             print(f"Failed to download {f_name} with: {e}\n")
     return dataset_dict
 
+
+def transform_data(datasets):
+    processed = {}
+
+    # "customers" pre-processing
+    if 'customers' in datasets:
+        customers = datasets['customers'].copy()
+
+        # Cleaning email address
+        customers['email'] = customers['email'].str.lower().str.strip()
+
+        # Converting dates into datetime datatype
+        customers['date_of_birth'] = pd.to_datetime(customers['date_of_birth'])
+        customers['registration_date'] = pd.to_datetime(customers['registration_date'])
+
+        # Feature enhancement
+        ## adding 'age' column
+        customers['age'] = (datetime.now() - customers['date_of_birth']).dt.days // 365
+
+        ## adding 'age_group' column
+        customers['age_group'] = pd.cut(customers['age'],
+                                        bins=np.linspace(0, 100, 6),  # [  0.,  20.,  40.,  60.,  80., 100.]
+                                        labels=['0-20', '21-40', '41-60', '61-80', '80+'])
+        processed['cleaned_customers'] = customers
+        print(f"\"Customers\" pre-processing completed with shape: {customers.shape}\n")
+
+    # "products" pre-processing
+    if "products" in datasets:
+        products = datasets['products'].copy()
+
+        # Addressing product_name
+        products['product_name'] = products['product_name'].str.strip()
+
+        # Converting "created_date" and "last_updated" to the datatype - datetime
+        products['created_date'] = pd.to_datetime(products['created_date'])
+        products['last_updated'] = pd.to_datetime(products['last_updated'])
+
+        # Converting products['price'] to numeric (seems redundant to me)
+        products['price'] = pd.to_numeric(products['price'], errors='coerce')
+
+        # Creating price groups
+        products['price_category'] = pd.cut(products['price'],
+                                            bins=np.linspace(np.min(products['price']), np.max(products['price']), 5),
+                                            labels=['Budget', 'Medium', 'Premium', 'Luxury'])
+        processed['cleaned_products'] = products
+        print(f"\"Products\" pre-processing completed with shape: {products.shape}\n")
+
+    # "orders" pre-processing
+    if 'orders' in datasets:
+        orders = datasets['orders'].copy()
+
+        # Converting the data type of "date" to datetime
+        orders["order_date"] = pd.to_datetime(orders["order_date"])
+
+        # Converting "total_amount" to numeric (seems redundant to me)
+        orders["total_amount"] = pd.to_numeric(orders["total_amount"])
+
+        # Extracting month and year for seasonal analysis
+        orders["order_year"] = orders["order_date"].dt.year
+        orders["order_month"] = orders["order_date"].dt.month
+
+        processed['cleaned_orders'] = orders
+        print(f"\"Orders\" pre-processing completed with shape: {orders.shape}\n")
+
+    # "order_items" pre-processing
+    if 'order_items' in datasets:
+        order_items = datasets['order_items'].copy()
+
+        # Converting numerical columns (seems redundant to me)
+        order_items['quantity'] = pd.to_numeric(order_items['quantity'], errors='coerce')
+        order_items['unit_price'] = pd.to_numeric(order_items['unit_price'], errors='coerce')
+        order_items['discount_amount'] = pd.to_numeric(order_items['discount_amount'], errors='coerce')
+
+        # Calculating total price of each item
+        order_items['total_price'] = order_items['unit_price'] * order_items['quantity']
+        processed['cleaned_order_items'] = order_items
+        print(f"\"Order_items\" pre-processing completed with shape: {order_items.shape}\n")
+
+    # "reviews" pre-processing
+    if 'reviews' in datasets:
+        reviews = datasets['reviews'].copy()
+
+        # Converting 'review_date' to datetime
+        reviews['review_date'] = pd.to_datetime(reviews['review_date'])
+
+        # Convert 'rating' to numeric
+        reviews['rating'] = pd.to_numeric(reviews['rating'], errors='coerce')
+
+        # Converting 'rating' to categories
+        reviews['rating_category'] = reviews['rating'].apply(lambda x: 'Excellent' if x >= 4.5 else
+        'Good' if x >= 3.5 else
+        'Average' if x >= 2.5 else
+        'Poor')
+
+        processed['cleaned_reviews'] = reviews
+        print(f'Processed reviews: {reviews.shape} records')
+
+    return processed
 
 
 if __name__ == "__main__":

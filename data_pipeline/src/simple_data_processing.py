@@ -1,5 +1,5 @@
 """
-TUTORIAL: Data Processing Pipeline
+A Simple Data Processing Pipeline
 Download data from S3, clean it, transform it, and upload results back to S3.
 """
 
@@ -41,13 +41,9 @@ def process_ecommerce_data():
         print("\nStep 2: Cleaning and transforming data...")
         processed_datasets = transform_data(datasets)
 
-        # Step 3: Create business metrics
-        print("\nStep 3: Creating business metrics...")
-        business_metrics = create_business_metrics(processed_datasets)
-
-        # Step 4: Upload processed data back to S3
+        # Step 3: Upload processed data back to S3
         print("\nStep 4: Uploading processed data to S3...")
-        upload_success = upload_processed_data(s3_client, bucket_name, processed_datasets, business_metrics)
+        upload_success = upload_processed_data(s3_client, bucket_name, processed_datasets)
 
         if upload_success:
             print("\nSUCCESS: Data processing pipeline completed!")
@@ -170,7 +166,7 @@ def transform_data(datasets):
         # Convert 'rating' to numeric
         reviews['rating'] = pd.to_numeric(reviews['rating'], errors='coerce')
 
-        # Converting 'rating' to categories
+        # Converting 'rating' to categorical data
         reviews['rating_category'] = reviews['rating'].apply(lambda x: 'Excellent' if x >= 4.5 else
         'Good' if x >= 3.5 else
         'Average' if x >= 2.5 else
@@ -180,9 +176,37 @@ def transform_data(datasets):
         print(f'Processed reviews: {reviews.shape} records')
 
     return processed
-def  create_business_metrics(processed_datasets):
+
+
+def upload_processed_data(s3_client, bucket_name, processed):
+    upload_count = 0
+    total_files = len(processed)  # + len(metrics)
+
+    for dataset_name, df in processed.items():
+        try:
+            local_path = os.path.join(tempfile.gettempdir(), f"{dataset_name}.csv")
+            df.to_csv(local_path, index=False)
+
+            # Uploading to S3
+            s3_key = f"processed/{dataset_name}.csv"
+            s3_client.upload_file(local_path, bucket_name, s3_key)
+            # s3_client.upload_file(local_path, xxx, s3_key) # BROKEN
+            print(f"Uploaded {dataset_name} with shape {df.shape}\n")
+
+            upload_count += 1
+
+            # Clean up
+            os.remove(local_path)
+
+        except Exception as e:
+            print(f"Failed to upload {dataset_name}.\n[ERROR]: {e}\n")
+
+    return upload_count == total_files
 
 
 if __name__ == "__main__":
-    # TODO: Call process_ecommerce_data() and handle the results
-    pass
+    success = process_ecommerce_data()
+    if success:
+        print("\nNext step: Orchestration with Prefect!")
+    else:
+        print("\nFix the errors")

@@ -35,7 +35,7 @@ deployments:
   schedule:
     interval: 120 # Run the flow every 2 minutes
   flow_name: ecommerce_ETL_pipeline
-  entrypoint: /Users/eleanor/git_local_repository/Data_Pipeline_Infra/data_pipeline/src/orchestration/prefect_flows.py:process_ecommerce_data
+  entrypoint: data_pipeline/src/orchestration/prefect_flows.py:process_ecommerce_data
 #  parameters:
   work_pool:
     name: project-pool

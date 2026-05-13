@@ -5,3 +5,4 @@
 lab_eleanor.py
 tests
 *.tar
+.DS_Store

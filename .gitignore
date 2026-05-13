@@ -4,4 +4,4 @@
 .venv
 lab_eleanor.py
 tests
-data_pipeline_infra.tar
+*.tar

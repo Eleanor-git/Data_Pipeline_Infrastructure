@@ -15,7 +15,7 @@ def download_data_from_s3(s3_client, bucket_name):
     logger.info("Starting data download from s3 bucket.")
 
     dataset_dict = {}
-    data_files = os.listdir("../../../data") # broken from here
+    data_files =['customers.csv','order_items.csv','products.csv','reviews.csv'] # broken from here
 
     for f_name in data_files:
         try:

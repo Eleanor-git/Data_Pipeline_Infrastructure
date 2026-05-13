@@ -59,8 +59,9 @@ def process_ecommerce_data():
 
 def download_data_from_s3(s3_client, bucket_name):
     dataset_dict = {}
+    #data_files = os.listdir("../data") #<--- broken
     #data_files = os.listdir("../../data")
-    data_files = ['customers.csv', 'order_items.csv','orders.csv', 'products.csv','reviews.csv']
+    #data_files = ['customers.csv', 'order_items.csv','orders.csv', 'products.csv','reviews.csv']
 
     for f_name in data_files:
         try:

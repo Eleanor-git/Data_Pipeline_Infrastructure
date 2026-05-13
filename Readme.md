@@ -40,6 +40,7 @@ Upload to Amazon S3
 │   │   └── docker/
 │   │       └── Dockerfile            # Container build instructions
 │   └── docker-compose.yml            # Docker compose
+└── Readme.md
 ```
 ## Set up Environment
 Create a `.env` file if needed:

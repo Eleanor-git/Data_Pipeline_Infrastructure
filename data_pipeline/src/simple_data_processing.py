@@ -50,38 +50,36 @@ def process_ecommerce_data():
         upload_success = upload_processed_data(s3_client, bucket_name, processed_datasets)
 
         if upload_success:
-            print("\nSUCCESS: Data processing pipeline completed!")
+            print("\n[SUCCESS]: Data processing pipeline completed!")
             return True
         else:
-            print("\nERROR: Failed to upload processed data")
+            print("\n[ERROR]: Failed to upload processed data")
             return False
 
     except Exception as e:
-        print(f"ERROR: Data processing failed: {e}")
+        print(f"[ERROR]: Data processing failed: {e}")
         return False
 
 
 def download_data_from_s3(s3_client, bucket_name):
     dataset_dict = {}
-    # data_files = os.listdir("../data") #<--- broken
-    # data_files = os.listdir("../../data")
     data_files = ['customers.csv', 'order_items.csv', 'orders.csv', 'products.csv', 'reviews.csv']
 
     for f_name in data_files:
         try:
             print(f"Downloading {f_name}...")
-            local_path = os.path.join("../../Download", f_name)
+            local_path = os.path.join(tempfile.gettempdir(), f"{f_name}")
 
             s3_client.download_file(bucket_name, f"data/{f_name}", local_path)
             df = pd.read_csv(local_path)
             dict_key = f_name.replace(".csv", "")
             dataset_dict[dict_key] = df
 
-            print(f"[SUCCESS] {dict_key} has been loaded with records: {len(df)}\n")
+            print(f"[SUCCESS] {dict_key} has been loaded with records: {len(df)}")
             os.remove(local_path)
 
         except Exception as e:
-            print(f"Failed to download {f_name} with: {e}\n")
+            print(f"Failed to download {f_name} with: {e}")
     return dataset_dict
 
 
@@ -108,7 +106,7 @@ def transform_data(datasets):
                                         bins=np.linspace(0, 100, 6),  # [  0.,  20.,  40.,  60.,  80., 100.]
                                         labels=['0-20', '21-40', '41-60', '61-80', '80+'])
         processed['cleaned_customers'] = customers
-        print(f"\"Customers\" pre-processing completed with shape: {customers.shape}\n")
+        print(f"\"Customers\" pre-processing completed with shape: {customers.shape}")
 
     # "products" pre-processing
     if "products" in datasets:
@@ -129,7 +127,7 @@ def transform_data(datasets):
                                             bins=np.linspace(np.min(products['price']), np.max(products['price']), 5),
                                             labels=['Budget', 'Medium', 'Premium', 'Luxury'])
         processed['cleaned_products'] = products
-        print(f"\"Products\" pre-processing completed with shape: {products.shape}\n")
+        print(f"\"Products\" pre-processing completed with shape: {products.shape}")
 
     # "orders" pre-processing
     if 'orders' in datasets:
@@ -146,7 +144,7 @@ def transform_data(datasets):
         orders["order_month"] = orders["order_date"].dt.month
 
         processed['cleaned_orders'] = orders
-        print(f"\"Orders\" pre-processing completed with shape: {orders.shape}\n")
+        print(f"\"Orders\" pre-processing completed with shape: {orders.shape}")
 
     # "order_items" pre-processing
     if 'order_items' in datasets:
@@ -160,7 +158,7 @@ def transform_data(datasets):
         # Calculating total price of each item
         order_items['total_price'] = order_items['unit_price'] * order_items['quantity']
         processed['cleaned_order_items'] = order_items
-        print(f"\"Order_items\" pre-processing completed with shape: {order_items.shape}\n")
+        print(f"\"Order_items\" pre-processing completed with shape: {order_items.shape}")
 
     # "reviews" pre-processing
     if 'reviews' in datasets:
@@ -179,7 +177,7 @@ def transform_data(datasets):
         'Poor')
 
         processed['cleaned_reviews'] = reviews
-        print(f'Processed reviews: {reviews.shape} records')
+        print(f"\"reviews\" pre-processing completed with shape: {reviews.shape}")
 
     return processed
 
@@ -222,17 +220,17 @@ def create_business_metrics(processed_datasets):
             metrics['product_metrics'] = product_metrics
             print(f"Created product metrics: {len(product_metrics)} products")
 
-        # Sales Revenue metrics
+        # Monthly sales trend
         if 'cleaned_orders' in processed_datasets:
             cleaned_orders = processed_datasets['cleaned_orders']
-            sales_revenue_metrics = cleaned_orders.groupby(['order_year', 'order_month']).agg(
+            monthly_sales = cleaned_orders.groupby(['order_year', 'order_month']).agg(
                 {'total_amount': 'sum',  # monthly revenue performance
                  'order_id': 'count'}).round(2)  # monthly order counts (workload)
-            sales_revenue_metrics.columns = ['total_revenue', 'order_count']
-            sales_revenue_metrics = sales_revenue_metrics.reset_index()
+            monthly_sales.columns = ['total_revenue', 'order_count']
+            monthly_sales = monthly_sales.reset_index()
 
-            metrics['sales_revenue_metrics'] = sales_revenue_metrics
-            print(f"Created monthly sales revenue metrics: {len(sales_revenue_metrics)} months")
+            metrics['monthly_sales'] = monthly_sales
+            print(f"Created monthly sales revenue metrics: {len(monthly_sales)} months")
 
         return metrics
 
@@ -250,7 +248,7 @@ def upload_processed_data(s3_client, bucket_name, processed):
             s3_key = f"processed/{dataset_name}.csv"
             s3_client.upload_file(local_path, bucket_name, s3_key)
             # s3_client.upload_file(local_path, xxx, s3_key) # BROKEN
-            print(f"Uploaded {dataset_name} with shape {df.shape}\n")
+            print(f"[SUCCESS]Uploaded {dataset_name} with shape {df.shape}")
 
             upload_count += 1
 

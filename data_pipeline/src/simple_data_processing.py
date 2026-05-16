@@ -41,7 +41,11 @@ def process_ecommerce_data():
         print("\nStep 2: Cleaning and transforming data...")
         processed_datasets = transform_data(datasets)
 
-        # Step 3: Upload processed data back to S3
+        # Step3: Business Metrics
+        print("\nStep3: Creating buisness metrics...")
+        business_metrics = create_business_metrics(processed_datasets)
+
+        # Step 4: Upload processed data back to S3
         print("\nStep 4: Uploading processed data to S3...")
         upload_success = upload_processed_data(s3_client, bucket_name, processed_datasets)
 
@@ -59,9 +63,9 @@ def process_ecommerce_data():
 
 def download_data_from_s3(s3_client, bucket_name):
     dataset_dict = {}
-    #data_files = os.listdir("../data") #<--- broken
-    #data_files = os.listdir("../../data")
-    #data_files = ['customers.csv', 'order_items.csv','orders.csv', 'products.csv','reviews.csv']
+    # data_files = os.listdir("../data") #<--- broken
+    # data_files = os.listdir("../../data")
+    data_files = ['customers.csv', 'order_items.csv', 'orders.csv', 'products.csv', 'reviews.csv']
 
     for f_name in data_files:
         try:
@@ -178,6 +182,59 @@ def transform_data(datasets):
         print(f'Processed reviews: {reviews.shape} records')
 
     return processed
+
+
+def create_business_metrics(processed_datasets):
+    metrics = {}
+
+    # Customer metric
+    if 'cleaned_customers' in processed_datasets and 'cleaned_orders' in processed_datasets:
+        cleaned_customers = processed_datasets['cleaned_customers']
+        cleaned_orders = processed_datasets['cleaned_orders']
+
+        # Customer lifetime value calculation
+        customer_metrics = cleaned_orders.groupby('customer_id').agg({'total_amount': ['sum', 'count', 'mean'],
+                                                                      # Calculating "total_spent", "number of orders", and "average amount per order" of each customer_id
+                                                                      'order_date': ['min', 'max']}).round(2)
+        customer_metrics.columns = ['total_spent', 'order_count', 'avg_order_price', 'first_order', 'last_order']
+        customer_metrics = customer_metrics.reset_index()
+        customer_metrics = customer_metrics.merge(cleaned_customers[['customer_id', 'age_group']],
+                                                  on='customer_id')  # 把兩個 DataFrame 用 customer_id 對齊後合併)
+        metrics['customer_metrics'] = customer_metrics
+        print(f"Created customer metrics: {len(customer_metrics)} customers")
+
+        # Product Performance metrics
+        if 'cleaned_products' in processed_datasets and 'cleaned_order_items' in processed_datasets:
+            cleaned_products = processed_datasets['cleaned_products']
+            cleaned_order_items = processed_datasets['cleaned_order_items']
+
+            # Product Performance Evaluation
+            product_metrics = cleaned_order_items.groupby('product_id').agg(
+                {'quantity': 'sum',  # 計算這項產品總共賣出多少件 Calculating the quantity of the product sold
+                 'total_price': 'sum',  # 計算這項產品的總收益 Calculating the total revenue of the product
+                 'order_id': 'count'  # 計算這項產品有多少訂單 Calculating the number of orders of the product
+                 }).round(2)
+            product_metrics.columns = ['total_quantity_sold', 'total_revenue', 'number_of_orders']
+            product_metrics = product_metrics.reset_index()
+            product_metrics = product_metrics.merge(
+                cleaned_products[['product_id', 'product_name', 'category', 'price']],
+                on='product_id')  # 參數on: 把兩個 DataFrame 用 product_id 對齊後合併
+            metrics['product_metrics'] = product_metrics
+            print(f"Created product metrics: {len(product_metrics)} products")
+
+        # Sales Revenue metrics
+        if 'cleaned_orders' in processed_datasets:
+            cleaned_orders = processed_datasets['cleaned_orders']
+            sales_revenue_metrics = cleaned_orders.groupby(['order_year', 'order_month']).agg(
+                {'total_amount': 'sum',  # monthly revenue performance
+                 'order_id': 'count'}).round(2)  # monthly order counts (workload)
+            sales_revenue_metrics.columns = ['total_revenue', 'order_count']
+            sales_revenue_metrics = sales_revenue_metrics.reset_index()
+
+            metrics['sales_revenue_metrics'] = sales_revenue_metrics
+            print(f"Created monthly sales revenue metrics: {len(sales_revenue_metrics)} months")
+
+        return metrics
 
 
 def upload_processed_data(s3_client, bucket_name, processed):

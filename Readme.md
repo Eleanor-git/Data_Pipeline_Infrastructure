@@ -20,7 +20,7 @@ It includes a Prefect server and a worker that executes ETL flows.
                                v
                     +----------------------+
                     |     AWS S3 Bucket    |
-                    |      raw-data/       |
+                    |         data/        |
                     +----------+-----------+
                                |
                                | Polling
@@ -51,7 +51,7 @@ It includes a Prefect server and a worker that executes ETL flows.
                   v                          |
         +-----------------------+            |
         | AWS S3 Bucket         |            |
-        | processed-data/       |            |
+        | processed/            |            |
         +-----------------------+            |
                                              |
                                              v

@@ -11,15 +11,69 @@ It includes a Prefect server and a worker that executes ETL flows.
 
 ## Architecture Diagram
 ```
-Amazon S3
-   ↓
+                    +----------------------+
+                    |   E-commerce App     |
+                    | (Orders / Customers) |
+                    +----------+-----------+
+                               |
+                               | Upload Raw Data
+                               v
+                    +----------------------+
+                    |     AWS S3 Bucket    |
+                    |      raw-data/       |
+                    +----------+-----------+
+                               |
+                               | Polling
+                               v
+                    +----------------------+
+                    |     Prefect Server   |
+                    |  Flow Orchestration  |
+                    +----------+-----------+
+                               |
+                 +-------------+-------------+
+                 |                           |
+                 | Execute Flow              |
+                 v                           |
+          +-------------+                    |
+          | Prefect     |                    |
+          | Worker      |                    |
+          +------+------+                    |
+                 |                           |
+                 | Run Python ETL            |
+                 v                           |
+       +----------------------+              |
+       | Python Transformation|              |
+       |  Data Preprocessing  |              |
+       |  (prefect_flows.py)  |              |
+       +----------+-----------+              |
+                  |                          |
+                  | Upload Cleaned Data      |
+                  v                          |
+        +-----------------------+            |
+        | AWS S3 Bucket         |            |
+        | processed-data/       |            |
+        +-----------------------+            |
+                                             |
+                                             v
+                                 +-------------------+
+                                 | Logging/Monitoring|
+                                 | Prefect UI        |
+                                 +-------------------+
+```
+
+## Data Flow
+```
+Raw Customer Data
+        ↓
+S3 Raw Bucket (data/)
+        ↓
 Prefect Flow Trigger
-   ↓
-Python ETL Service
-   ├── Extract data from S3
-   └──  Transform data
-   ↓
-Upload to Amazon S3
+        ↓
+Python Transformation Script (prefect_flows.py) 
+        ↓
+Processed Dataset
+        ↓
+S3 Processed Bucket(processed-data/)
 ```
 
 ## Project Structure

@@ -56,8 +56,8 @@ It includes a Prefect server and a worker that executes ETL flows.
                                              |
                                              v
                                  +-------------------+
-                                 | Logging/Monitoring|
-                                 | Prefect UI        |
+                                 |     Monitoring    |
+                                 |     Prefect UI    |
                                  +-------------------+
 ```
 
